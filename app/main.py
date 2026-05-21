@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -6,6 +8,7 @@ from app.config import get_settings
 from app.db.session import create_tables, get_db
 
 
+logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="DocAssis Telegram RAG Bot")
 
 

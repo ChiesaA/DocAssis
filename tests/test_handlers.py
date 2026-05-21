@@ -62,3 +62,26 @@ async def test_private_message_uses_no_context_fallback(monkeypatch, db):
     )
 
     assert sent == [(10, handlers.NO_CONTEXT_MESSAGE)]
+
+
+@pytest.mark.asyncio
+async def test_private_message_llm_error_is_reported_without_raising(monkeypatch, db):
+    db.add(User(telegram_user_id=20, is_active=True))
+    db.commit()
+    sent = []
+
+    async def fake_send_message(chat_id, text):
+        sent.append((chat_id, text))
+
+    def broken_embed_texts(texts):
+        raise RuntimeError("invalid api key")
+
+    monkeypatch.setattr(handlers, "send_message", fake_send_message)
+    monkeypatch.setattr(handlers, "embed_texts", broken_embed_texts)
+
+    await handlers.handle_update(
+        {"message": {"chat": {"id": 10, "type": "private"}, "from": {"id": 20}, "text": "Question"}},
+        db,
+    )
+
+    assert sent == [(10, handlers.ERROR_MESSAGE)]

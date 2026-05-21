@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,6 +15,8 @@ from app.tasks.worker import ingest_document
 
 NO_CONTEXT_MESSAGE = "Chưa tìm thấy thông tin phù hợp."
 UNAUTHORIZED_MESSAGE = "Bạn chưa được cấp quyền sử dụng bot này."
+ERROR_MESSAGE = "Đang có lỗi xử lý câu hỏi. Vui lòng thử lại sau."
+logger = logging.getLogger(__name__)
 
 
 async def handle_update(update: dict, db: Session) -> None:
@@ -21,6 +25,13 @@ async def handle_update(update: dict, db: Session) -> None:
     chat_id = chat.get("id")
     chat_type = chat.get("type")
     settings = get_settings()
+    logger.info(
+        "Received Telegram update chat_id=%s chat_type=%s has_document=%s has_text=%s",
+        chat_id,
+        chat_type,
+        bool(message.get("document")),
+        bool(message.get("text")),
+    )
 
     if chat_id == settings.admin_group_id:
         await _handle_admin_message(message, db)
@@ -74,12 +85,17 @@ async def _handle_private_message(message: dict, db: Session) -> None:
         return
 
     settings = get_settings()
-    query_vector = embed_texts([question])[0]
-    contexts = search_contexts(
-        query_vector,
-        limit=settings.retrieval_limit,
-        score_threshold=settings.retrieval_score_threshold,
-    )
+    try:
+        query_vector = embed_texts([question])[0]
+        contexts = search_contexts(
+            query_vector,
+            limit=settings.retrieval_limit,
+            score_threshold=settings.retrieval_score_threshold,
+        )
+    except Exception:
+        logger.exception("Failed to process private question for telegram_user_id=%s", user_id)
+        await send_message(chat_id, ERROR_MESSAGE)
+        return
     if not contexts:
         await send_message(chat_id, NO_CONTEXT_MESSAGE)
         return
