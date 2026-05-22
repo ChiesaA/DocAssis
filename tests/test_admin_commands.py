@@ -11,9 +11,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.admin.commands import HELP_TEXT, parse_admin_command
+from app.admin.commands import HELP_TEXT, format_status_message, parse_admin_command
 from app.bot import handlers
-from app.db.models import Base
+from app.db.models import Base, Document
 
 
 def test_parse_help_command():
@@ -30,6 +30,23 @@ def test_parse_retry_command_with_document_id():
 
 def test_parse_non_command_returns_none():
     assert parse_admin_command("hello") is None
+
+
+def test_format_status_message_lists_recent_documents():
+    documents = [
+        Document(id=2, file_name="b.txt", status="indexed"),
+        Document(id=1, file_name="a.txt", status="failed", error_message="boom"),
+    ]
+
+    assert format_status_message(documents) == (
+        "5 file gần nhất:\n"
+        "#2 b.txt - indexed\n"
+        "#1 a.txt - failed - boom"
+    )
+
+
+def test_format_status_message_handles_empty_list():
+    assert format_status_message([]) == "Chưa có file nào."
 
 
 @pytest.mark.asyncio
@@ -51,3 +68,34 @@ async def test_admin_help_command_sends_help(monkeypatch):
     )
 
     assert sent == [(admin_group_id, HELP_TEXT)]
+
+
+@pytest.mark.asyncio
+async def test_admin_status_command_sends_recent_documents(monkeypatch):
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    admin_group_id = handlers.get_settings().admin_group_id
+    db.add(
+        Document(
+            file_id="f",
+            file_unique_id="u",
+            file_name="policy.txt",
+            admin_chat_id=admin_group_id,
+            status="indexed",
+        )
+    )
+    db.commit()
+    sent = []
+
+    async def fake_send_message(chat_id, text):
+        sent.append((chat_id, text))
+
+    monkeypatch.setattr(handlers, "send_message", fake_send_message)
+
+    await handlers.handle_update(
+        {"message": {"chat": {"id": admin_group_id, "type": "group"}, "text": "/status"}},
+        db,
+    )
+
+    assert sent == [(admin_group_id, "5 file gần nhất:\n#1 policy.txt - indexed")]

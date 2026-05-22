@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.admin.commands import HELP_TEXT, parse_admin_command
+from app.admin.commands import HELP_TEXT, format_status_message, parse_admin_command
 from app.bot.telegram import send_message
 from app.config import get_settings
 from app.db.models import Document, User
@@ -52,6 +52,10 @@ async def _handle_admin_message(message: dict, db: Session) -> None:
         name, args = command
         if name == "help":
             await send_message(chat_id, HELP_TEXT)
+            return
+        if name == "status":
+            documents = db.execute(select(Document).order_by(Document.id.desc()).limit(5)).scalars().all()
+            await send_message(chat_id, format_status_message(documents))
             return
 
     document = message.get("document")

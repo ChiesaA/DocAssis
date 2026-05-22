@@ -15,3 +15,15 @@ def parse_admin_command(text: str | None) -> tuple[str, list[str]] | None:
     if command not in {"help", "status", "retry"}:
         return None
     return command, parts[1:]
+
+
+def format_status_message(documents) -> str:
+    if not documents:
+        return "Chưa có file nào."
+    lines = ["5 file gần nhất:"]
+    for document in documents:
+        line = f"#{document.id} {document.file_name} - {document.status}"
+        if document.status == "failed" and document.error_message:
+            line = f"{line} - {document.error_message[:120]}"
+        lines.append(line)
+    return "\n".join(lines)
