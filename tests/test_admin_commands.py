@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.admin.commands import HELP_TEXT, format_status_message, parse_admin_command
+from app.admin.commands import HELP_TEXT, build_retry_response, format_status_message, parse_admin_command
 from app.bot import handlers
 from app.db.models import Base, Document
 
@@ -47,6 +47,15 @@ def test_format_status_message_lists_recent_documents():
 
 def test_format_status_message_handles_empty_list():
     assert format_status_message([]) == "Chưa có file nào."
+
+
+def test_build_retry_response_requires_numeric_id():
+    assert build_retry_response([]) == (None, "Dùng: /retry <document_id>")
+    assert build_retry_response(["abc"]) == (None, "document_id phải là số.")
+
+
+def test_build_retry_response_accepts_numeric_id():
+    assert build_retry_response(["42"]) == (42, "")
 
 
 @pytest.mark.asyncio
@@ -99,3 +108,44 @@ async def test_admin_status_command_sends_recent_documents(monkeypatch):
     )
 
     assert sent == [(admin_group_id, "5 file gần nhất:\n#1 policy.txt - indexed")]
+
+
+@pytest.mark.asyncio
+async def test_admin_retry_failed_document_enqueues_task(monkeypatch):
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    admin_group_id = handlers.get_settings().admin_group_id
+    document = Document(
+        file_id="f",
+        file_unique_id="u",
+        file_name="policy.txt",
+        admin_chat_id=admin_group_id,
+        status="failed",
+        error_message="old",
+    )
+    db.add(document)
+    db.commit()
+    sent = []
+    enqueued = []
+
+    async def fake_send_message(chat_id, text):
+        sent.append((chat_id, text))
+
+    class FakeTask:
+        def delay(self, document_id):
+            enqueued.append(document_id)
+
+    monkeypatch.setattr(handlers, "send_message", fake_send_message)
+    monkeypatch.setattr(handlers, "ingest_document", FakeTask())
+
+    await handlers.handle_update(
+        {"message": {"chat": {"id": admin_group_id, "type": "group"}, "text": "/retry 1"}},
+        db,
+    )
+
+    db.refresh(document)
+    assert document.status == "queued"
+    assert document.error_message is None
+    assert enqueued == [1]
+    assert sent == [(admin_group_id, "Đã enqueue retry document #1: policy.txt")]

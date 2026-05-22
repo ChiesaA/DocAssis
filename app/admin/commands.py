@@ -27,3 +27,12 @@ def format_status_message(documents) -> str:
             line = f"{line} - {document.error_message[:120]}"
         lines.append(line)
     return "\n".join(lines)
+
+
+def build_retry_response(args: list[str]) -> tuple[int | None, str]:
+    if not args:
+        return None, "Dùng: /retry <document_id>"
+    try:
+        return int(args[0]), ""
+    except ValueError:
+        return None, "document_id phải là số."
