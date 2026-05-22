@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.bot import handlers
-from app.db.models import Base, User
+from app.db.models import Base, Document, User
 
 
 @pytest.fixture()
@@ -85,3 +85,71 @@ async def test_private_message_llm_error_is_reported_without_raising(monkeypatch
     )
 
     assert sent == [(10, handlers.ERROR_MESSAGE)]
+
+
+@pytest.mark.asyncio
+async def test_admin_duplicate_indexed_file_reports_existing(monkeypatch, db):
+    db.add(
+        Document(
+            file_id="old",
+            file_unique_id="same",
+            file_name="policy.txt",
+            admin_chat_id=-100,
+            status="indexed",
+        )
+    )
+    db.commit()
+    sent = []
+
+    async def fake_send_message(chat_id, text):
+        sent.append((chat_id, text))
+
+    monkeypatch.setattr(handlers, "send_message", fake_send_message)
+
+    await handlers.handle_update(
+        {
+            "message": {
+                "chat": {"id": handlers.get_settings().admin_group_id, "type": "group"},
+                "from": {"id": 20},
+                "document": {"file_id": "new", "file_unique_id": "same", "file_name": "policy.txt"},
+            }
+        },
+        db,
+    )
+
+    assert sent == [(handlers.get_settings().admin_group_id, "File đã được index: policy.txt")]
+
+
+@pytest.mark.asyncio
+async def test_admin_duplicate_failed_file_suggests_retry(monkeypatch, db):
+    db.add(
+        Document(
+            file_id="old",
+            file_unique_id="same",
+            file_name="policy.txt",
+            admin_chat_id=-100,
+            status="failed",
+        )
+    )
+    db.commit()
+    sent = []
+
+    async def fake_send_message(chat_id, text):
+        sent.append((chat_id, text))
+
+    monkeypatch.setattr(handlers, "send_message", fake_send_message)
+
+    await handlers.handle_update(
+        {
+            "message": {
+                "chat": {"id": handlers.get_settings().admin_group_id, "type": "group"},
+                "from": {"id": 20},
+                "document": {"file_id": "new", "file_unique_id": "same", "file_name": "policy.txt"},
+            }
+        },
+        db,
+    )
+
+    assert sent == [
+        (handlers.get_settings().admin_group_id, "File từng xử lý lỗi: policy.txt. Dùng /retry 1 để xử lý lại.")
+    ]

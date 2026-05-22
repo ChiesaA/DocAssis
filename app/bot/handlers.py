@@ -89,6 +89,17 @@ async def _handle_admin_message(message: dict, db: Session) -> None:
         await send_message(chat_id, "Chỉ hỗ trợ file PDF, TXT hoặc DOCX.")
         return
 
+    existing = db.execute(select(Document).where(Document.file_unique_id == document["file_unique_id"])).scalar_one_or_none()
+    if existing:
+        if existing.status == "indexed":
+            await send_message(chat_id, f"File đã được index: {existing.file_name}")
+            return
+        if existing.status == "failed":
+            await send_message(chat_id, f"File từng xử lý lỗi: {existing.file_name}. Dùng /retry {existing.id} để xử lý lại.")
+            return
+        await send_message(chat_id, f"File đang ở trạng thái {existing.status}: {existing.file_name}")
+        return
+
     db_document = Document(
         file_id=document["file_id"],
         file_unique_id=document["file_unique_id"],
