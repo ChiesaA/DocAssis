@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.bot.telegram import download_file
+from app.bot.telegram import download_file, send_message
 from app.config import get_settings
 from app.db.models import Document
 from app.db.session import SessionLocal
@@ -38,6 +38,8 @@ def ingest_document(document_id: int) -> None:
 
         document.status = "indexed"
         db.commit()
+        if should_notify_admin(document):
+            asyncio.run(send_message(document.admin_chat_id, build_success_message(document, len(chunks))))
     except Exception as exc:
         db.rollback()
         document = db.get(Document, document_id)
@@ -45,8 +47,23 @@ def ingest_document(document_id: int) -> None:
             document.status = "failed"
             document.error_message = str(exc)[:4000]
             db.commit()
+            if should_notify_admin(document):
+                asyncio.run(send_message(document.admin_chat_id, build_failure_message(document, str(exc))))
         raise
     finally:
         db.close()
         if temp_path:
             Path(temp_path).unlink(missing_ok=True)
+
+
+def should_notify_admin(document: Document) -> bool:
+    return document.admin_chat_id is not None
+
+
+def build_success_message(document: Document, chunk_count: int) -> str:
+    return f"Đã xử lý xong file: {document.file_name}. Đã index {chunk_count} đoạn nội dung."
+
+
+def build_failure_message(document: Document, error: str) -> str:
+    clipped_error = error[:300]
+    return f"Xử lý file thất bại: {document.file_name}.\nLỗi: {clipped_error}"

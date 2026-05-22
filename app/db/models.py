@@ -31,6 +31,7 @@ class Document(Base):
     file_unique_id: Mapped[str] = mapped_column(String(256), nullable=False)
     file_name: Mapped[str] = mapped_column(String(512), nullable=False)
     mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     uploaded_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="queued", nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

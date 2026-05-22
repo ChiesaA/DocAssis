@@ -57,6 +57,7 @@ async def _handle_admin_message(message: dict, db: Session) -> None:
         file_unique_id=document["file_unique_id"],
         file_name=file_name,
         mime_type=document.get("mime_type"),
+        admin_chat_id=chat_id,
         uploaded_by=(message.get("from") or {}).get("id"),
         status="queued",
     )
