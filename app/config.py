@@ -14,8 +14,9 @@ class Settings(BaseSettings):
     qdrant_collection: str = "documents"
 
     openai_api_key: str
-    openai_embedding_model: str = "text-embedding-3-small"
-    openai_chat_model: str = "gpt-4.1-mini"
+    openai_base_url: str | None = None
+    openai_embedding_model: str = "gemini-embedding-001"
+    openai_chat_model: str = "gemini-2.5-flash"
 
     retrieval_limit: int = 5
     retrieval_score_threshold: float = 0.35

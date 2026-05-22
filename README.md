@@ -21,7 +21,17 @@ Sửa `.env`:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET`
 - `ADMIN_GROUP_ID`
-- `OPENAI_API_KEY`
+- `OPENAI_API_KEY`: Google AI Studio API key
+
+Mặc định app dùng Gemini API qua OpenAI-compatible endpoint:
+
+```env
+OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+OPENAI_EMBEDDING_MODEL=gemini-embedding-001
+OPENAI_CHAT_MODEL=gemini-2.5-flash
+```
+
+Embedding dùng Gemini API native qua cùng Google AI Studio key. Model id trực tiếp của Google không có prefix provider; `gemini/gemini-embedding-2` là dạng id của router, không phải id dùng trực tiếp với Google AI Studio.
 
 Start stack:
 
