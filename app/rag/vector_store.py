@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams
 
 from app.config import get_settings
 
@@ -39,6 +39,15 @@ def upsert_chunks(document_id: int, chunks: list, vectors: list[list[float]], fi
         for chunk, vector in zip(chunks, vectors, strict=True)
     ]
     client.upsert(collection_name=settings.qdrant_collection, points=points)
+
+
+def delete_document_vectors(document_id: int) -> None:
+    client.delete(
+        collection_name=settings.qdrant_collection,
+        points_selector=Filter(
+            must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+        ),
+    )
 
 
 def search_contexts(query_vector: list[float], limit: int, score_threshold: float) -> list[dict]:

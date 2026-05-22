@@ -11,7 +11,7 @@ from app.db.session import SessionLocal
 from app.rag.chunking import chunk_pages
 from app.rag.llm import embed_texts
 from app.rag.parsers import parse_file
-from app.rag.vector_store import upsert_chunks
+from app.rag.vector_store import delete_document_vectors, upsert_chunks
 from app.tasks.celery_app import celery_app
 
 
@@ -34,6 +34,7 @@ def ingest_document(document_id: int) -> None:
         pages = parse_file(temp_path, document.file_name)
         chunks = chunk_pages(pages, settings.chunk_size, settings.chunk_overlap)
         vectors = embed_texts([chunk.text for chunk in chunks])
+        delete_document_vectors(document.id)
         upsert_chunks(document.id, chunks, vectors, document.file_name)
 
         document.status = "indexed"
