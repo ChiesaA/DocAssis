@@ -12,6 +12,8 @@ from app.db.session import SessionLocal, create_tables, get_db
 
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
 app = FastAPI(title="DocAssis Telegram RAG Bot")
 
 

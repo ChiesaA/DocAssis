@@ -64,6 +64,12 @@ docker compose exec postgres psql -U docassis -d docassis \
 
 Thêm bot vào admin group, cấu hình đúng `ADMIN_GROUP_ID`, rồi upload file `.pdf`, `.txt`, hoặc `.docx`.
 
+Lệnh admin trong group:
+
+- `/help`: xem hướng dẫn.
+- `/status`: xem 5 file gần nhất.
+- `/retry <document_id>`: xử lý lại file failed hoặc re-index file đã indexed.
+
 Trạng thái document:
 
 ```bash
@@ -91,3 +97,5 @@ docker compose run --rm api python -c "from app.main import app; print(app.title
 - File gốc không được lưu trong hệ thống; worker chỉ dùng file tạm trong `/tmp`.
 - Qdrant collection được tạo tự động khi document đầu tiên được index.
 - Bot bỏ qua message từ group không phải `ADMIN_GROUP_ID`.
+- Dùng `docker compose logs -f --tail=0 api worker` khi debug webhook để chỉ xem log mới.
+- `/status` và `/retry <document_id>` chỉ hoạt động trong admin group.
